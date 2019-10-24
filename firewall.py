@@ -24,7 +24,7 @@ class Firewall:
     def __init__(self, state):
         self._state = state
 
-    def bloquear(self, ip, tiempo):
+    def bloquear(self, ip, tiempo=6):
         self._state.bloquear(ip, tiempo)
 
     def inicializar(self, tabla="zimbra-block"):
@@ -74,16 +74,16 @@ class Iptables(State):
             tabla,
             "-s",
             ip,
-            "-m time",
+            "-m",
+            "time",
             "--datestop",
             fecha_finalizacion,
-            "-j DROP",
+            "-j",
+            "DROP",
         ]
-        stderr = ""
-        exit_code = subprocess.call(comando, stderr=stderr)
+        exit_code = subprocess.call(comando)
         if exit_code != 0:
             logger.debug("iptables-bloquear: exit-code: {}".format(exit_code))
-            logger.debug("iptables-bloquear: stderr: {}".format(stderr))
             raise ValueError("Ocurrio un error al bloquar la ip {}".format(ip))
 
     def inicializar(self, tabla="zimbra-block"):
@@ -100,7 +100,7 @@ class Iptables(State):
         logger.debug("La Tabla: {} ya existe.".format(tabla))
 
         # Chequeamos si la chain ya esta apuntada
-        comando = [self._ruta, "-C INPUT", "-j", tabla]
+        comando = [self._ruta, "-C", "INPUT", "-j", tabla]
         print(comando)
         try:
             subprocess.call(comando, check=True)
@@ -108,7 +108,7 @@ class Iptables(State):
         except:
             # La agrego a la chain de INPUT
             logger.debug("Agregamos la tabla {} a INPUT.".format(tabla))
-            comando = [self._ruta, "-A INPUT", "-j", tabla]
+            comando = [self._ruta, "-A", "INPUT", "-j", tabla]
             print(comando)
             subprocess.call(comando)
 
@@ -123,7 +123,7 @@ class Iptables(State):
 
 def _getTiempoFuturo(horas=6):
     """Devuelve la fecha actual+ x horas en el formato que le sirve a iptables"""
-    return (datetime.now() + timedelta(hours=horas)).strftime("%Y:%m:%d:%H:%M")
+    return (datetime.now() + timedelta(hours=horas)).strftime("%Y-%m-%dT%H:%M")
 
 
 def getFirewall():
