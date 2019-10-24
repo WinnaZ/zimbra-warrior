@@ -52,7 +52,6 @@ def parser(file):
     ip_dict = {}
     for line in file:
         ip = re.findall(ip_regex, line)
-        #import ipdb; ipdb.set_trace()
         date = re.findall(date_regex_1, line)
         if date ==[]:
             date = re.findall(date_regex_2, line)
@@ -75,7 +74,9 @@ def check_ips(all_ips, valid_net_ips):
 valid_net_ips = load_valid_ips(r"valid_ips.txt")
 #ip_dict = parser(load_file_type1(r"template.log"))
 
-ip_dict = parser(load_file_type2(r"zimbra.log") + load_file_type2(r"template.log"))
+
+ip_dict = parser(load_file_type2(r"zimbra.log"))
+ip_dict.update(parser(load_file_type1(r"template.log")))
 
 ips_to_ban = check_ips(ip_dict.keys(),valid_net_ips)
 
