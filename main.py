@@ -75,19 +75,22 @@ def check_ips(all_ips, valid_net_ips):
     return bad_ips
 
 
-# main
+def main():
+    valid_net_ips = load_valid_ips(r"valid_ips.txt")
+    # ip_dict = parser(load_file_type1(r"template.log"))
 
-valid_net_ips = load_valid_ips(r"valid_ips.txt")
-# ip_dict = parser(load_file_type1(r"template.log"))
+
+    ip_dict = parser(load_file_type2(r"zimbra.log"))
+    ip_dict.update(parser(load_file_type1(r"template.log")))
+
+    ips_to_ban = check_ips(ip_dict.keys(), valid_net_ips)
+
+    pprint(ips_to_ban)
+    fw = getFirewall()
+    fw.inicializar()
+    for ip in ips_to_ban:
+        fw.bloquear(ip.__str__())
 
 
-ip_dict = parser(load_file_type2(r"zimbra.log"))
-ip_dict.update(parser(load_file_type1(r"template.log")))
-
-ips_to_ban = check_ips(ip_dict.keys(), valid_net_ips)
-
-pprint(ips_to_ban)
-fw = getFirewall()
-fw.inicializar()
-for ip in ips_to_ban:
-    fw.bloquear(ip.__str__())
+if __name__ == '__main__':
+    main()
