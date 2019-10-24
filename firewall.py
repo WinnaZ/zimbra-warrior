@@ -11,6 +11,7 @@ por que fui a la facultad"""
 # Para invocar usar la funcion getFirewall()
 
 
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +25,13 @@ class Firewall:
         self._state = state
 
     def bloquear(self, ip, tiempo):
-        self._sate.bloquear(ip, tiempo)
+        self._state.bloquear(ip, tiempo)
+
+    def inicializar(self, tabla="zimbra-block"):
+        self._state.inicializar(tabla)
+
+    def finalizar(self, tabla="zimbra-block"):
+        self._state.finalizar(tabla)
 
 
 class State(metaclass=abc.ABCMeta):
@@ -35,10 +42,10 @@ class State(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def __init__(self, ruta):
-        _ruta = ruta
+        pass
 
     @abc.abstractmethod
-    def bloquear(self, ip, tiempo, tabla="zimbra-block"):
+    def bloquear(self, ip, tiempo=6, tabla="zimbra-block"):
         pass
 
     @abc.abstractmethod
@@ -51,12 +58,15 @@ class State(metaclass=abc.ABCMeta):
 
 
 class FirewallD(State):
-    def bloquear(self, ip, tiempo, tabla="zimbra-block"):
+    def bloquear(self, ip, tiempo=6, tabla="zimbra-block"):
         pass
 
 
 class Iptables(State):
-    def bloquear(self, ip, tiempo, tabla="zimbra-block"):
+    def __init__(self, ruta):
+        self._ruta = ruta
+
+    def bloquear(self, ip, tiempo=6, tabla="zimbra-block"):
         fecha_finalizacion = _getTiempoFuturo()
         comando = [
             self._ruta,
@@ -76,25 +86,39 @@ class Iptables(State):
             logger.debug("iptables-bloquear: stderr: {}".format(stderr))
             raise ValueError("Ocurrio un error al bloquar la ip {}".format(ip))
 
-    @abc.abstractmethod
     def inicializar(self, tabla="zimbra-block"):
-        # Creo la tabla
-        comando = [self._ruta, "-N", tabla]
-        stderr = ""
-        exit_code = subprocess.call(comando, stderr=stderr)
-        # en caso de que la tabla ya exista
-        if exit_code != 0 and stderr.strip() == "iptables: Chain already exists.":
-            logger.debug("La tabla {} ya existe.".format(tabla))
-        # La agrego a la chain de INPUT
-        comando = [self._ruta, "-A INPUT", "-j", tabla]
-        subprocess.call(comando)
+        # Verifico si la chain existe
+        comando = [self._ruta, "-L", tabla]
+        try:
+            subprocess.call(comando, check=True)
+        except:
+            # No existe la tabla
+            # Creo la tabla
+            logger.debug("Creando la tabla: {}.".format(tabla))
+            comando = [self._ruta, "-N", tabla]
+            subprocess.call(comando)
+        logger.debug("La Tabla: {} ya existe.".format(tabla))
 
-    @abc.abstractmethod
+        # Chequeamos si la chain ya esta apuntada
+        comando = [self._ruta, "-C INPUT", "-j", tabla]
+        print(comando)
+        try:
+            subprocess.call(comando, check=True)
+            logger.debug("La tabla {} ya existe en INPUT.".format(tabla))
+        except:
+            # La agrego a la chain de INPUT
+            logger.debug("Agregamos la tabla {} a INPUT.".format(tabla))
+            comando = [self._ruta, "-A INPUT", "-j", tabla]
+            print(comando)
+            subprocess.call(comando)
+
     def finalizar(self, tabla="zimbra-block"):
+        # Borramos las reglas
         comando = [self._ruta, "-F", tabla]
         exit_code = subprocess.call(comando)
-        comando = [self._ruta, "-X", tabla]
-        exit_code = subprocess.call(comando)
+        # Borramos la chain
+        # comando = [self._ruta, "-X", tabla]
+        # exit_code = subprocess.call(comando)
 
 
 def _getTiempoFuturo(horas=6):
@@ -104,9 +128,9 @@ def _getTiempoFuturo(horas=6):
 
 def getFirewall():
     "Funcion de ayuda para obtener la clase de firewall"
-    ruta = which("firewall-cmd")
-    if ruta:
-        return Firewall(FirewallD(ruta))
+    # ruta = which("firewall-cmd")
+    # if ruta:
+    #    return Firewall(FirewallD(ruta))
 
     ruta = which("iptables")
     if ruta:
