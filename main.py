@@ -10,7 +10,7 @@ date_regex_1 = "^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3}\s"
 date_regex_2 = "[A-Z][a-z][a-z] \d{2} \d{2}:\d{2}:\d{2}"
 
 ip_regex = "\d{1,}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
-network_regex = "\d{1,}\.\d{1,3}\.\d{1,3}\.\d{1,3}/]?[0-9][0-9]"
+network_regex = "\d{1,}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/.\d{0,1}"
 
 
 def load_valid_ips(ip_path):
@@ -18,7 +18,8 @@ def load_valid_ips(ip_path):
     with open(ip_path, "r") as ips:
         for line in ips:
             ip = re.findall(network_regex, line)
-            valid_ips.append(ip_network(ip[0]))
+            if ip:
+                valid_ips.append(ip_network(ip[0]))
 
     return valid_ips
 
@@ -76,7 +77,7 @@ def check_ips(all_ips, valid_net_ips):
 
 
 def main():
-    valid_net_ips = load_valid_ips(r"valid_ips.txt")
+    valid_net_ips = load_valid_ips(r"whitelist.txt")
     # ip_dict = parser(load_file_type1(r"template.log"))
 
 
@@ -88,8 +89,9 @@ def main():
     pprint(ips_to_ban)
     fw = getFirewall()
     fw.inicializar()
-    for ip in ips_to_ban:
-        fw.bloquear(ip.__str__())
+  #  for ip in ips_to_ban:
+  
+  #     fw.bloquear(ip.__str__()+'/16')
 
 
 if __name__ == '__main__':
