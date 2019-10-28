@@ -1,6 +1,8 @@
-from shutil import which
+# from shutil import which
+from distutils.spawn import find_executable as which
 import subprocess
 from datetime import datetime, timedelta
+import re
 import abc
 import logging
 
@@ -34,7 +36,8 @@ class Firewall:
         self._state.finalizar(tabla)
 
 
-class State(metaclass=abc.ABCMeta):
+# class State(metaclass=abc.ABCMeta):
+class State:
     """
     Define una interfaz para los determinados comportamientos
     asociados al los estados
@@ -65,8 +68,37 @@ class FirewallD(State):
 class Iptables(State):
     def __init__(self, ruta):
         self._ruta = ruta
+        self._awk = which("awk")
+
+    def _eliminar_entrada(self, ip, tabla="zimbra-block"):
+        """Verifica si la ip esta en la tabla y la elimina"""
+        awk_code = "{if (NR!=1 &&d NR!=2){print $1, $5}}"
+        comando = [self._ruta, "--line", "--numeric", "-L", tabla]
+        try:
+            iptables_ps = subprocess.Popen(comando, stdout=subprocess.PIPE)
+            comando = [self._awk, awk_code]
+            awk_ps = subprocess.Popen(
+                comando, stdin=iptables_ps.stdout, stdout=subprocess.PIPE
+            )
+            iptables_ps.stdout.close()
+            output = awk_ps.communicate()[0]
+
+            lineas = output.decode("utf-8").split("\n")
+            lineas.reverse()
+            for linea in lineas:
+                if linea:
+                    linea = str(linea).split()
+                    if linea[1] == ip:
+                        comando = [self._ruta, "-D", tabla, linea[0]]
+                        subprocess.call(comando)
+
+        except:
+            raise OSError(
+                "Un error inesperado sucedio al parsear la salida de iptables."
+            )
 
     def bloquear(self, ip, tiempo=6, tabla="zimbra-block"):
+        self._eliminar_entrada(ip, tabla)
         fecha_finalizacion = _getTiempoFuturo()
         comando = [
             self._ruta,
@@ -76,6 +108,7 @@ class Iptables(State):
             ip,
             "-m",
             "time",
+            "--utc",
             "--datestop",
             fecha_finalizacion,
             "-j",
@@ -101,15 +134,13 @@ class Iptables(State):
 
         # Chequeamos si la chain ya esta apuntada
         comando = [self._ruta, "-C", "INPUT", "-j", tabla]
-        print(comando)
         try:
             subprocess.call(comando, check=True)
-            logger.debug("La tabla {} ya existe en INPUT.".format(tabla))
         except:
             # La agrego a la chain de INPUT
+            logger.debug("La tabla {} no existe en INPUT.".format(tabla))
             logger.debug("Agregamos la tabla {} a INPUT.".format(tabla))
             comando = [self._ruta, "-A", "INPUT", "-j", tabla]
-            print(comando)
             subprocess.call(comando)
 
     def finalizar(self, tabla="zimbra-block"):
@@ -122,8 +153,8 @@ class Iptables(State):
 
 
 def _getTiempoFuturo(horas=6):
-    """Devuelve la fecha actual+ x horas en el formato que le sirve a iptables"""
-    return (datetime.now() + timedelta(hours=horas)).strftime("%Y-%m-%dT%H:%M")
+    """Devuelve la fecha actual+ x horas en el formato que le sirve a iptables, devuelve en UTC"""
+    return (datetime.utcnow() + timedelta(hours=horas)).strftime("%Y-%m-%dT%H:%M")
 
 
 def getFirewall():
@@ -131,6 +162,10 @@ def getFirewall():
     # ruta = which("firewall-cmd")
     # if ruta:
     #    return Firewall(FirewallD(ruta))
+
+    ruta = which("awk")
+    if not ruta:
+        raise OSError("No se encontro el binario de awk.")
 
     ruta = which("iptables")
     if ruta:
