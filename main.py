@@ -13,8 +13,8 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # define my regex
-date_regex_1 = "^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3}\s"
-date_regex_2 = "[A-Z][a-z][a-z] \d{2} \d{2}:\d{2}:\d{2}"
+date_regex_1 = "^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3}\s"  #2019-10-29 10:27:09,927
+date_regex_2 = "[A-Z][a-z][a-z] \d{2} \d{2}:\d{2}:\d{2}" #Oct 23 03:52:28
 
 ip_regex = "\d{1,}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
 network_regex = "\d{1,}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/.\d{0,1}"
